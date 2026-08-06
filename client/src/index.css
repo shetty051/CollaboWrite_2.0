@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-serif: 'Lora', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-script: 'Caveat', cursive;
+
+  --color-bg: var(--bg-color);
+  --color-surface: var(--surface-color);
+  --color-surface-hover: var(--surface-hover-color);
+  --color-text: var(--text-color);
+  --color-text-muted: var(--text-muted-color);
+  --color-accent: var(--accent-color);
+  --color-accent-hover: var(--accent-hover-color);
+  --color-border: var(--border-color);
+  --color-shadow: var(--shadow-color);
+}
+
+:root {
+  /* Warm Editorial Light Mode */
+  --bg-color: #fcf9f2; /* warm off-white background */
+  --surface-color: #f7f3e8; /* soft cream surface */
+  --surface-hover-color: #efeadc; /* cream hover */
+  --text-color: #2b221a; /* deep charcoal brown text */
+  --text-muted-color: #706557; /* soft brown secondary text */
+  --accent-color: #c95c3f; /* terracotta accent */
+  --accent-hover-color: #b04d33;
+  --border-color: #e5dec9; /* light warm border */
+  --shadow-color: rgba(43, 34, 26, 0.04);
+}
+
+.dark {
+  /* Cozy Navy Midnight & Gold Dark Mode */
+  --bg-color: #0b1120; /* midnight navy background */
+  --surface-color: #121d33; /* soft navy surface */
+  --surface-hover-color: #1a2742; /* navy hover */
+  --text-color: #f5f0e1; /* warm reader-friendly text */
+  --text-muted-color: #8c9cb8; /* slate secondary text */
+  --accent-color: #d4af37; /* soft gold accent */
+  --accent-hover-color: #c5a028;
+  --border-color: #1c2d4e; /* dark border */
+  --shadow-color: rgba(3, 5, 11, 0.4);
+}
+
+/* Base resets & typography applications */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-sans);
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-serif);
+}
+
+.font-script {
+  font-family: var(--font-script);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px; /* offset for sticky header */
+}
