@@ -37,8 +37,8 @@ dotenv.config()
 const app = express()
 const server = http.createServer(app)
 
-// Port settings
-const PORT = process.env.SERVER_PORT || 5000
+// Port settings (Render binds process.env.PORT dynamically)
+const PORT = process.env.PORT || process.env.SERVER_PORT || 5000
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
 // Enable CORS
