@@ -42,10 +42,11 @@ export const signup = async (req: AuthenticatedRequest, res: Response): Promise<
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' })
 
     // Set in HttpOnly Cookie
+    const isProd = process.env.NODE_ENV === 'production'
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
