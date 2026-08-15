@@ -7,7 +7,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, hoverEffect = true, children, ...props }, ref) => {
+  ({ className, hoverEffect = true, children, onAnimationStart: _onAnimationStart, ...props }, ref) => {
     return (
       <motion.div
         ref={ref}
@@ -19,7 +19,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
           'bg-surface border border-border rounded-2xl p-6 shadow-[0_4px_20px_var(--shadow-color)] transition-colors duration-300',
           className,
         )}
-        {...props}
+        {...(props as any)}
       >
         {children}
       </motion.div>

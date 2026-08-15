@@ -7,6 +7,8 @@ import { TiptapEditor } from './TiptapEditor'
 import { InviteCoAuthorModal } from './InviteCoAuthorModal'
 import { toast } from '../store/useToastStore'
 import { useAuthStore } from '../store/useAuthStore'
+import { apiFetch } from '../api/apiClient'
+import { GENRES_LIST } from '../constants/genres'
 import {
   ArrowLeft,
   Save,
@@ -46,26 +48,19 @@ interface StoryEditorProps {
   onSaved: () => void
 }
 
-const AVAILABLE_GENRES = [
-  'Fiction',
-  'Sci-Fi',
-  'Memoir',
-  'Mystery',
-  'Poetry',
-  'Historical',
-  'Drama',
-  'Fantasy',
-  'Romance',
-]
+const AVAILABLE_GENRES = GENRES_LIST
 
 export const StoryEditor: React.FC<StoryEditorProps> = ({ initialStory, onBack, onSaved }) => {
-  const currentUser = useAuthStore((state) => state.user)
-  const [storyId, setStoryId] = useState<string | null>(initialStory?._id || null)
+  const user = useAuthStore((state) => state.user)
+
+  const [storyId, setStoryId] = useState<string | undefined>(initialStory?._id)
   const [title, setTitle] = useState(initialStory?.title || '')
   const [subtitle, setSubtitle] = useState(initialStory?.subtitle || '')
-  const [genres, setGenres] = useState<string[]>(initialStory?.genres || ['Fiction'])
+  const [genres, setGenres] = useState<string[]>(
+    initialStory?.genres && initialStory.genres.length > 0 ? initialStory.genres : ['Fiction'],
+  )
+  const [tags, setTags] = useState<string[]>(initialStory?.tags || [])
   const [tagInput, setTagInput] = useState('')
-  const [tags, setTags] = useState<string[]>(initialStory?.tags || ['editorial'])
   const [coverImageUrl, setCoverImageUrl] = useState(initialStory?.coverImageUrl || '')
   const [content, setContent] = useState<Record<string, unknown>>(
     initialStory?.content || {
@@ -73,25 +68,27 @@ export const StoryEditor: React.FC<StoryEditorProps> = ({ initialStory, onBack, 
       content: [
         {
           type: 'paragraph',
-          content: [{ type: 'text', text: 'Write your story content here...' }],
+          content: [
+            { type: 'text', text: 'Start writing your manuscript here in real-time...' },
+          ],
         },
       ],
     },
   )
 
   const [saving, setSaving] = useState(false)
-  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
 
   const isOriginalAuthor =
-    !initialStory || !initialStory.author || initialStory.author._id === currentUser?._id
+    !initialStory || !initialStory.author || initialStory.author._id === user?._id
 
-  // References to keep current values for autosave interval closure
-  const formDataRef = useRef({ title, subtitle, genres, tags, content, coverImageUrl, storyId })
+  // Ref to hold current state for interval without stale closure
+  const formDataRef = useRef({ storyId, title, subtitle, genres, tags, content, coverImageUrl })
   useEffect(() => {
-    formDataRef.current = { title, subtitle, genres, tags, content, coverImageUrl, storyId }
-  }, [title, subtitle, genres, tags, content, coverImageUrl, storyId])
+    formDataRef.current = { storyId, title, subtitle, genres, tags, content, coverImageUrl }
+  }, [storyId, title, subtitle, genres, tags, content, coverImageUrl])
 
   // 30-Second Autosave Effect
   useEffect(() => {
@@ -100,7 +97,7 @@ export const StoryEditor: React.FC<StoryEditorProps> = ({ initialStory, onBack, 
       if (currentData.storyId && currentData.title.trim()) {
         setAutosaveStatus('saving')
         try {
-          const res = await fetch(`/api/stories/${currentData.storyId}`, {
+          const res = await apiFetch(`/api/stories/${currentData.storyId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -163,7 +160,7 @@ export const StoryEditor: React.FC<StoryEditorProps> = ({ initialStory, onBack, 
     reader.onloadend = async () => {
       const base64 = reader.result as string
       try {
-        const res = await fetch('/api/upload-image', {
+        const res = await apiFetch('/api/upload-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: base64 }),
@@ -196,7 +193,7 @@ export const StoryEditor: React.FC<StoryEditorProps> = ({ initialStory, onBack, 
       const endpoint = storyId ? `/api/stories/${storyId}` : '/api/stories'
       const method = storyId ? 'PATCH' : 'POST'
 
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -237,7 +234,7 @@ export const StoryEditor: React.FC<StoryEditorProps> = ({ initialStory, onBack, 
       // First ensure it exists in DB
       let targetId = storyId
       if (!targetId) {
-        const createRes = await fetch('/api/stories', {
+        const createRes = await apiFetch('/api/stories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -261,7 +258,7 @@ export const StoryEditor: React.FC<StoryEditorProps> = ({ initialStory, onBack, 
       }
 
       // Publish endpoint
-      const pubRes = await fetch(`/api/stories/${targetId}/publish`, {
+      const pubRes = await apiFetch(`/api/stories/${targetId}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })

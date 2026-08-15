@@ -51,3 +51,23 @@ export const requireAdmin = async (
   }
   next()
 }
+
+export const optionalAuth = async (
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1]
+    if (token) {
+      const decoded = jwt.verify(token, JWT_SECRET) as any
+      const user = await User.findById(decoded.id || decoded._id)
+      if (user && !user.isSuspended) {
+        req.user = user
+      }
+    }
+  } catch {
+    // Ignore invalid tokens for optional auth
+  }
+  next()
+}

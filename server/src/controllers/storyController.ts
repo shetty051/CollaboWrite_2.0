@@ -101,7 +101,7 @@ export const getStoryById = async (req: Request, res: Response): Promise<void> =
       const alreadyViewed = story.viewedBy?.some((id) => id.toString() === userId.toString())
       if (!alreadyViewed) {
         if (!story.viewedBy) story.viewedBy = []
-        story.viewedBy.push(userId)
+        story.viewedBy.push(userId as any)
         story.viewCount += 1
         await story.save()
       }

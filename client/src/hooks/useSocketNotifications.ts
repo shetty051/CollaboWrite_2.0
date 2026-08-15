@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import { io, Socket } from 'socket.io-client'
 
 export interface NotificationItem {
@@ -35,7 +36,7 @@ export function useSocketNotifications() {
   const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) return
     try {
-      const res = await fetch('/api/notifications')
+      const res = await apiFetch('/api/notifications')
       const json = await res.json()
       if (res.ok && json.success) {
         setNotifications(json.data || [])
@@ -49,7 +50,7 @@ export function useSocketNotifications() {
   // Mark single as read
   const markAsRead = async (id: string) => {
     try {
-      const res = await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' })
+      const res = await apiFetch(`/api/notifications/${id}/read`, { method: 'PATCH' })
       const json = await res.json()
       if (res.ok && json.success) {
         setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)))
@@ -63,7 +64,7 @@ export function useSocketNotifications() {
   // Mark all as read
   const markAllAsRead = async () => {
     try {
-      const res = await fetch('/api/notifications/read-all', { method: 'PATCH' })
+      const res = await apiFetch('/api/notifications/read-all', { method: 'PATCH' })
       if (res.ok) {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
         setUnreadCount(0)
@@ -84,7 +85,7 @@ export function useSocketNotifications() {
     }
 
     let isMounted = true
-    fetch('/api/notifications')
+    apiFetch('/api/notifications')
       .then((res) => res.json())
       .then((json) => {
         if (isMounted && json.success) {

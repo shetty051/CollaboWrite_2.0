@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card } from './ui/Card'
 import { Button } from './ui/Button'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import { Video, BookOpen, Star, Eye } from 'lucide-react'
 
 interface StoryItem {
@@ -20,22 +21,22 @@ interface StoryItem {
 
 const YOUTUBE_CRAFT_VIDEOS = [
   {
-    id: 'vK_w0z_N--s',
+    id: '4PqGPZtyFtw',
     title: 'How to Write a Great Story: Plotting & Character Arcs',
-    channel: 'Brandon Sanderson Masterclass',
+    channel: 'Creative Writing Masterclass',
   },
   {
-    id: 'b84cZJdE8v8',
+    id: 'RSoRzTtwgP4',
     title: 'Show, Don’t Tell: Creative Writing Rules to Live By',
-    channel: 'Creative Writing Workshop',
+    channel: 'Writing Workshop Essentials',
   },
   {
-    id: '0IFDuhdB2Hk',
-    title: 'Worldbuilding 101: Creating Believable Settings',
-    channel: 'Author Insights',
+    id: 'hZRQ2GzWdXw',
+    title: 'Worldbuilding 101: Creating Believable Fantasy Settings',
+    channel: 'Author & Craft Insights',
   },
   {
-    id: 'wVnPyqF_aVs',
+    id: 'gQ58-GPaj2k',
     title: 'Editing & Polishing Manuscripts for Publication',
     channel: 'Literary Editing Essentials',
   },
@@ -48,7 +49,7 @@ export const WriterHome = () => {
 
   useEffect(() => {
     let isMounted = true
-    fetch('/api/home/spotlight')
+    apiFetch('/api/home/spotlight')
       .then((res) => res.json())
       .then((json) => {
         if (isMounted && json.success) {
@@ -101,6 +102,21 @@ export const WriterHome = () => {
             </Card>
           ))}
         </div>
+
+        <div className="flex justify-center mt-3">
+          <a
+            href="https://www.youtube.com/results?search_query=tips+on+writing+creatively"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button
+              variant="primary"
+              className="flex items-center gap-2 px-6 py-2.5 text-xs uppercase tracking-wider font-semibold shadow-md cursor-pointer"
+            >
+              Explore More Writing Tips →
+            </Button>
+          </a>
+        </div>
       </div>
 
       {/* Community Writer Feed */}
@@ -126,6 +142,14 @@ export const WriterHome = () => {
         {loading ? (
           <div className="py-8 text-center text-text-muted text-xs font-sans">
             Loading writer feed...
+          </div>
+        ) : feedStories.length === 0 ? (
+          <div className="p-8 bg-surface/50 border border-border border-dashed rounded-2xl text-center flex flex-col items-center gap-2">
+            <BookOpen className="w-8 h-8 text-accent opacity-40" />
+            <h4 className="font-serif font-bold text-sm text-text">No community stories yet</h4>
+            <p className="text-xs text-text-muted font-sans">
+              Check back soon or be the first to publish a new manuscript!
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

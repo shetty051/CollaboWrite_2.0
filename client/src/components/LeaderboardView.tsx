@@ -5,6 +5,7 @@ import { Badge } from './ui/Badge'
 import { Skeleton } from './ui/Skeleton'
 import { useAuthStore } from '../store/useAuthStore'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import { Trophy, Award, Crown } from 'lucide-react'
 
 interface LeaderboardEntry {
@@ -41,7 +42,7 @@ export const LeaderboardView = () => {
 
   useEffect(() => {
     let isMounted = true
-    fetch('/api/leaderboard')
+    apiFetch('/api/leaderboard')
       .then((res) => res.json())
       .then((json) => {
         if (isMounted && json.success) {

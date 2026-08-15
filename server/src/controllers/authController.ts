@@ -46,6 +46,7 @@ export const signup = async (req: AuthenticatedRequest, res: Response): Promise<
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     })
 
@@ -53,12 +54,15 @@ export const signup = async (req: AuthenticatedRequest, res: Response): Promise<
       success: true,
       message: 'Signup successful. Logged in.',
       data: {
+        id: user._id,
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         name: user.name,
         email: user.email,
         role: user.role,
+        isAdmin: user.isAdmin || false,
+        isSuspended: user.isSuspended || false,
         avatarUrl: user.avatarUrl,
         bio: user.bio,
       },
@@ -106,6 +110,7 @@ export const login = async (req: AuthenticatedRequest, res: Response): Promise<v
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
@@ -113,6 +118,7 @@ export const login = async (req: AuthenticatedRequest, res: Response): Promise<v
       success: true,
       message: 'Login successful.',
       data: {
+        id: user._id,
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -136,7 +142,8 @@ export const logout = async (req: AuthenticatedRequest, res: Response): Promise<
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
+      path: '/',
     })
     res.status(200).json({ success: true, message: 'Logged out successfully.' })
   } catch (error: any) {
@@ -147,9 +154,28 @@ export const logout = async (req: AuthenticatedRequest, res: Response): Promise<
 // GET /api/auth/me
 export const getMe = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required.' })
+      return
+    }
+    const user = req.user
     res.status(200).json({
       success: true,
-      data: req.user,
+      data: {
+        id: user._id,
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isAdmin: user.isAdmin || false,
+        isSuspended: user.isSuspended || false,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+        followerCount: user.followers ? user.followers.length : 0,
+        followingCount: user.following ? user.following.length : 0,
+      },
     })
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || 'Server error fetching user details' })
@@ -177,9 +203,114 @@ export const setRole = async (req: AuthenticatedRequest, res: Response): Promise
     res.status(200).json({
       success: true,
       message: `Account role set to ${role} successfully.`,
-      data: user,
+      data: {
+        id: user._id,
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isAdmin: user.isAdmin || false,
+        isSuspended: user.isSuspended || false,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+      },
     })
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || 'Server error setting role' })
   }
 }
+
+// POST /api/upload-avatar or POST /api/auth/upload-avatar (Protected)
+export const uploadAvatar = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { avatarUrl, image } = req.body
+    const targetUrl = avatarUrl || image
+
+    if (!targetUrl) {
+      res.status(400).json({ success: false, message: 'No avatar image provided.' })
+      return
+    }
+
+    const userId = req.user?._id
+    const user = await User.findByIdAndUpdate(userId, { avatarUrl: targetUrl }, { new: true }).select('-passwordHash')
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found.' })
+      return
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture updated successfully.',
+      data: {
+        id: user._id,
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isAdmin: user.isAdmin || false,
+        isSuspended: user.isSuspended || false,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+      },
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Server error uploading profile picture' })
+  }
+}
+
+// PATCH /api/auth/change-password (Protected)
+export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      res.status(400).json({ success: false, message: 'Please fill in current password, new password, and confirmation.' })
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ success: false, message: 'New password and confirm password do not match.' })
+      return
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({ success: false, message: 'New password must be at least 8 characters long.' })
+      return
+    }
+
+    const userId = req.user?._id
+    const user = await User.findById(userId)
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found.' })
+      return
+    }
+
+    const isMatch = await user.comparePassword(currentPassword)
+    if (!isMatch) {
+      res.status(400).json({ success: false, message: 'Current password is incorrect.' })
+      return
+    }
+
+    if (currentPassword === newPassword) {
+      res.status(400).json({ success: false, message: 'New password cannot be identical to current password.' })
+      return
+    }
+
+    user.passwordHash = newPassword
+    await user.save()
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully.',
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Server error changing password' })
+  }
+}
+

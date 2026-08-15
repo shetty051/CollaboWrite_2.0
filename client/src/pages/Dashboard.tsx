@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
+import { apiFetch } from '../api/apiClient'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -12,20 +13,16 @@ import { LeaderboardView } from '../components/LeaderboardView'
 import { ReaderHome } from '../components/ReaderHome'
 import { WriterHome } from '../components/WriterHome'
 import { FeedbackView } from '../components/FeedbackView'
+import { AdminDashboard } from './AdminDashboard'
+import { Sidebar } from '../components/Sidebar'
+import { ProfileView } from '../components/ProfileView'
+import { ThemeToggle } from '../components/ThemeToggle'
+import { useSocketNotifications, type NotificationItem } from '../hooks/useSocketNotifications'
 import { toast } from '../store/useToastStore'
 import {
   PenTool,
-  BookOpen,
   Plus,
-  Calendar,
-  Mail,
   Search as SearchIcon,
-  Home as HomeIcon,
-  BookMarked,
-  BarChart3,
-  Trophy,
-  User as UserIcon,
-  MessageSquareQuote,
   Pencil,
   Trash2,
   Eye,
@@ -34,6 +31,10 @@ import {
   Users,
   Check,
   X,
+  Menu,
+  Bell,
+  CheckCheck,
+  LogOut,
 } from 'lucide-react'
 
 interface WriterStoryItem {
@@ -78,14 +79,16 @@ interface CollabRequestItem {
 
 export const Dashboard = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const user = useAuthStore((state) => state.user)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const isHydrated = useAuthStore((state) => state.isHydrated)
 
-  // Role detection
+  // Role & Admin detection
   const isWriter = user?.role === 'writer'
+  const isAdmin = !!user?.isAdmin
 
-  // Writer Tabs: Search, Home, Read, Write, Bookmarks, Stats, Leaderboard, Profile
+  // Writer Tabs: Search, Home, Read, Write, Bookmarks, Stats, Leaderboard, Admin (if admin), Profile
   const writerTabs = [
     'Search',
     'Home',
@@ -94,15 +97,31 @@ export const Dashboard = () => {
     'Bookmarks',
     'Stats',
     'Leaderboard',
+    ...(isAdmin ? ['Admin'] : []),
     'Profile',
   ]
-  // Reader Tabs: Search, Home, Read, Bookmarks, Feedback, Leaderboard, Profile
-  const readerTabs = ['Search', 'Home', 'Read', 'Bookmarks', 'Feedback', 'Leaderboard', 'Profile']
+  // Reader Tabs: Search, Home, Read, Bookmarks, Feedback, Leaderboard, Admin (if admin), Profile
+  const readerTabs = [
+    'Search',
+    'Home',
+    'Read',
+    'Bookmarks',
+    'Feedback',
+    'Leaderboard',
+    ...(isAdmin ? ['Admin'] : []),
+    'Profile',
+  ]
 
   const activeTabsList = isWriter ? writerTabs : readerTabs
 
-  const [activeTab, setActiveTab] = useState<string>('Home')
+  const [activeTab, setActiveTab] = useState<string>(location.state?.tab || 'Home')
   const [searchTerm, setSearchTerm] = useState('')
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab)
+    }
+  }, [location.state])
 
   // Writer story management states inside Write tab
   const [writerStories, setWriterStories] = useState<WriterStoryItem[]>([])
@@ -122,8 +141,8 @@ export const Dashboard = () => {
     setLoadingStories(true)
     try {
       const [storiesRes, collabRes] = await Promise.all([
-        fetch('/api/stories/my-stories'),
-        fetch('/api/collab-requests'),
+        apiFetch('/api/stories/my-stories'),
+        apiFetch('/api/collab-requests'),
       ])
       const storiesJson = await storiesRes.json()
       const collabJson = await collabRes.json()
@@ -145,7 +164,7 @@ export const Dashboard = () => {
   const fetchBookmarks = async () => {
     setLoadingBookmarks(true)
     try {
-      const res = await fetch('/api/users/me/bookmarks')
+      const res = await apiFetch('/api/users/me/bookmarks')
       const json = await res.json()
       if (res.ok && json.success) {
         setBookmarks(json.data)
@@ -160,7 +179,7 @@ export const Dashboard = () => {
   useEffect(() => {
     let isMounted = true
     if (isAuthenticated && isWriter) {
-      Promise.all([fetch('/api/stories/my-stories'), fetch('/api/collab-requests')])
+      Promise.all([apiFetch('/api/stories/my-stories'), apiFetch('/api/collab-requests')])
         .then(async ([sRes, cRes]) => {
           const sJson = await sRes.json()
           const cJson = await cRes.json()
@@ -184,7 +203,7 @@ export const Dashboard = () => {
   // Respond to collab request (Accept/Decline)
   const handleRespondCollab = async (requestId: string, status: 'accepted' | 'declined') => {
     try {
-      const res = await fetch(`/api/collab-requests/${requestId}`, {
+      const res = await apiFetch(`/api/collab-requests/${requestId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -215,7 +234,7 @@ export const Dashboard = () => {
   // Remove Bookmark
   const handleRemoveBookmark = async (storyId: string) => {
     try {
-      const res = await fetch(`/api/stories/${storyId}/bookmark`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/stories/${storyId}/bookmark`, { method: 'DELETE' })
       const json = await res.json()
       if (res.ok && json.success) {
         setBookmarks(bookmarks.filter((b) => b._id !== storyId))
@@ -246,7 +265,7 @@ export const Dashboard = () => {
     if (!confirm('Are you sure you want to delete this manuscript?')) return
 
     try {
-      const res = await fetch(`/api/stories/${storyId}`, {
+      const res = await apiFetch(`/api/stories/${storyId}`, {
         method: 'DELETE',
       })
       const json = await res.json()
@@ -280,88 +299,199 @@ export const Dashboard = () => {
     )
   }
 
-  // Helper icon for tabs
-  const getTabIcon = (tab: string) => {
-    switch (tab) {
-      case 'Search':
-        return <SearchIcon className="w-3.5 h-3.5" />
-      case 'Home':
-        return <HomeIcon className="w-3.5 h-3.5" />
-      case 'Read':
-        return <BookMarked className="w-3.5 h-3.5" />
-      case 'Write':
-        return <PenTool className="w-3.5 h-3.5" />
-      case 'Bookmarks':
-        return <BookmarkIcon className="w-3.5 h-3.5" />
-      case 'Stats':
-        return <BarChart3 className="w-3.5 h-3.5" />
-      case 'Feedback':
-        return <MessageSquareQuote className="w-3.5 h-3.5" />
-      case 'Leaderboard':
-        return <Trophy className="w-3.5 h-3.5" />
-      case 'Profile':
-        return <UserIcon className="w-3.5 h-3.5" />
-      default:
-        return null
+
+
+  const logout = useAuthStore((state) => state.logout)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useSocketNotifications()
+
+  const handleLogout = async () => {
+    await logout()
+    toast.success('Successfully logged out!')
+    navigate('/')
+  }
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    markAsRead(item._id)
+    setShowNotifications(false)
+    if (item.relatedStory?._id) {
+      navigate(`/library/story/${item.relatedStory._id}`)
+    } else if (item.fromUser?._id) {
+      navigate(`/profile/${item.fromUser._id}`)
     }
   }
 
   const firstName = user.firstName || (user.name || '').trim().split(/\s+/)[0] || 'User'
 
+  // Issue 5: Prompt user when pressing browser back button while on dashboard
+  useEffect(() => {
+    window.history.pushState({ isDashboard: true }, '', window.location.href)
+
+    const handlePopState = () => {
+      const confirmLogout = window.confirm(
+        'Are you sure you want to log out and leave your active workspace?',
+      )
+      if (confirmLogout) {
+        handleLogout()
+      } else {
+        window.history.pushState({ isDashboard: true }, '', window.location.href)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
   return (
-    <div className="min-h-screen bg-bg text-text transition-colors duration-300 py-6 px-4 md:px-12">
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
-        {/* Workspace Hub Banner */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-border/60">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-serif font-bold tracking-tight">
+    <div className="min-h-screen bg-bg text-text transition-colors duration-300 flex overflow-hidden">
+      {/* Collapsible Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={(t) => setActiveTab(t)}
+        tabs={activeTabsList}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        user={user}
+        onLogout={handleLogout}
+      />
+
+      {/* Main Workspace Surface */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Option A Top Header Bar */}
+        <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md border-b border-border/80 px-4 md:px-8 py-3 flex items-center justify-between relative">
+          {/* Left: Hamburger Toggle Only */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (window.innerWidth < 1024) {
+                  setIsMobileSidebarOpen(true)
+                } else {
+                  setIsSidebarCollapsed((prev) => !prev)
+                }
+              }}
+              className="p-2 text-text-muted hover:text-text hover:bg-bg rounded-xl transition-colors cursor-pointer"
+              title="Toggle Navigation Menu"
+              aria-label="Toggle Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Center: Workspace Heading & Subtext */}
+          <div className="flex-1 text-center px-2 min-w-0">
+            <h1 className="text-sm md:text-base font-serif font-bold text-text leading-tight truncate">
               {isWriter ? 'Author Workspace' : 'Reader Hub'}
             </h1>
-            <p className="text-xs text-text-muted mt-1 font-sans">
-              Welcome back, <strong className="text-text">{firstName}</strong>. Manage your
-              literature & studio tabs below.
+            <p className="text-[11px] text-text-muted font-sans hidden sm:block truncate">
+              Welcome, <strong className="text-text">{firstName}</strong>
             </p>
           </div>
-          <Badge
-            variant="primary"
-            className="flex items-center gap-1.5 px-4 py-1.5 font-sans font-semibold uppercase tracking-wider text-xs"
-          >
-            {isWriter ? (
-              <>
-                <PenTool className="w-3.5 h-3.5" /> Writer Account
-              </>
-            ) : (
-              <>
-                <BookOpen className="w-3.5 h-3.5" /> Reader Account
-              </>
-            )}
-          </Badge>
-        </div>
 
-        {/* Client-side Tab Switcher */}
-        <div className="flex border-b border-border/40 overflow-x-auto scrollbar-none gap-2">
-          {activeTabsList.map((tab) => (
+          {/* Right: Controls & Actions */}
+          <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications((prev) => !prev)}
+                className="p-2 text-text-muted hover:text-text rounded-full hover:bg-bg border border-border/60 transition-colors relative cursor-pointer"
+                title="Notifications"
+                aria-label="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-accent text-white text-[9px] font-bold rounded-full min-w-[18px] text-center animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="fixed sm:absolute top-14 sm:top-auto right-4 sm:right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-surface border border-border rounded-2xl shadow-xl p-4 z-50 text-xs font-sans flex flex-col gap-3 max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <div className="font-bold text-text flex items-center gap-1.5">
+                      Notifications{' '}
+                      {unreadCount > 0 && (
+                        <span className="text-accent text-[10px]">({unreadCount} unread)</span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-[10px] text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <CheckCheck className="w-3 h-3" /> Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {notifications.length === 0 ? (
+                    <div className="text-text-muted text-center py-6">
+                      You are all caught up! No unread updates.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {notifications.map((n) => (
+                        <div
+                          key={n._id}
+                          onClick={() => handleNotificationClick(n)}
+                          className={`p-3 rounded-xl border transition-colors cursor-pointer flex items-start gap-3 ${
+                            !n.isRead
+                              ? 'bg-accent/10 border-accent/30 font-semibold'
+                              : 'bg-bg/50 border-border/40 hover:bg-bg'
+                          }`}
+                        >
+                          <div className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            {n.fromUser?.name ? n.fromUser.name.charAt(0) : '🔔'}
+                          </div>
+                          <div className="flex-1 flex flex-col gap-0.5">
+                            <p className="text-xs text-text leading-tight">{n.message}</p>
+                            <span className="text-[10px] text-text-muted">
+                              {new Date(n.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
+            {/* User Greeting */}
+            <span className="text-xs font-semibold text-text font-sans hidden md:inline-block">
+              Hi {firstName}
+            </span>
+
+            {/* Sign Out Button */}
             <button
-              key={tab}
-              onClick={() => handleTabChange(tab)}
-              className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all duration-200 shrink-0 flex items-center gap-2 cursor-pointer ${
-                activeTab === tab
-                  ? 'border-accent text-accent font-bold bg-accent/5 rounded-t-lg'
-                  : 'border-transparent text-text-muted hover:text-text'
-              }`}
+              onClick={handleLogout}
+              className="px-3.5 py-1.5 border border-border/80 hover:border-accent hover:text-accent text-xs font-semibold uppercase tracking-wider rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
             >
-              {getTabIcon(tab)}
-              {tab}
+              <span className="hidden sm:inline">Sign Out</span>
+              <LogOut className="w-3.5 h-3.5" />
             </button>
-          ))}
-        </div>
+          </div>
+        </header>
 
-        {/* Tab Content Views */}
-        <div className="mt-2 min-h-[450px]">
+        {/* Tab Content View Container */}
+        <main className="p-4 md:p-8 max-w-6xl mx-auto w-full">
           {/* READ TAB: Live Authenticated Library Component */}
           {activeTab === 'Read' && (
             <div className="animate-fadeIn">
-              <Library />
+              <Library hideBackButton={true} />
             </div>
           )}
 
@@ -702,61 +832,12 @@ export const Dashboard = () => {
           {/* LEADERBOARD TAB */}
           {activeTab === 'Leaderboard' && <LeaderboardView />}
 
+          {/* ADMIN TAB (Admin Only) */}
+          {activeTab === 'Admin' && isAdmin && <AdminDashboard isEmbedded={true} />}
+
           {/* PROFILE TAB */}
-          {activeTab === 'Profile' && (
-            <div className="max-w-2xl mx-auto flex flex-col gap-6 animate-fadeIn">
-              <Card className="p-8 border border-border flex flex-col gap-6">
-                <div className="flex items-center gap-4 border-b border-border/50 pb-6">
-                  <div className="w-16 h-16 rounded-full bg-accent text-white font-serif flex items-center justify-center text-2xl font-bold border border-border">
-                    {firstName.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-serif font-bold">
-                      {user.firstName} {user.lastName || ''}
-                    </h3>
-                    <p className="text-xs text-text-muted font-sans mt-0.5">{user.email}</p>
-                    <Badge
-                      variant="primary"
-                      className="mt-2 text-[10px] uppercase tracking-wider font-semibold"
-                    >
-                      {user.role} profile
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-4 text-xs font-sans">
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-text-muted shrink-0" />
-                    <div>
-                      <span className="font-bold text-text">Email Address:</span>
-                      <p className="text-text-muted mt-0.5">{user.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <UserIcon className="w-4 h-4 text-text-muted shrink-0" />
-                    <div>
-                      <span className="font-bold text-text">Account Role:</span>
-                      <p className="text-text-muted mt-0.5">
-                        {user.role === 'writer'
-                          ? 'Writer (Full drafting & publishing access)'
-                          : 'Reader (Library & reviews access)'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-text-muted shrink-0" />
-                    <div>
-                      <span className="font-bold text-text">Platform Status:</span>
-                      <p className="text-text-muted mt-0.5">Active Account</p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
-        </div>
+          {activeTab === 'Profile' && <ProfileView />}
+        </main>
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { ReportModal } from '../components/ReportModal'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import {
   ArrowLeft,
   Star,
@@ -33,22 +34,26 @@ interface AuthorInfo {
   bio?: string
 }
 
-interface TiptapTextNode {
+interface TiptapMark {
   type: string
-  text?: string
+  attrs?: Record<string, unknown>
 }
 
-interface TiptapContentNode {
+interface TiptapNode {
   type: string
+  text?: string
+  marks?: TiptapMark[]
   attrs?: {
     level?: number
+    textAlign?: string
+    [key: string]: unknown
   }
-  content?: TiptapTextNode[]
+  content?: TiptapNode[]
 }
 
 interface TiptapDoc {
   type: string
-  content?: TiptapContentNode[]
+  content?: TiptapNode[]
 }
 
 interface StoryDetailItem {
@@ -59,7 +64,7 @@ interface StoryDetailItem {
   coAuthors: AuthorInfo[]
   genres: string[]
   tags: string[]
-  content: TiptapDoc
+  content: TiptapDoc | Record<string, unknown> | string
   coverImageUrl?: string
   viewCount: number
   averageRating: number
@@ -113,7 +118,7 @@ export const StoryDetail = () => {
       if (shareSlug) {
         endpoint = `/api/stories/share/${shareSlug}`
       }
-      const res = await fetch(endpoint)
+      const res = await apiFetch(endpoint)
       if (!res.ok) throw new Error('Failed to load story details.')
       return res.json()
     },
@@ -126,7 +131,7 @@ export const StoryDetail = () => {
   useEffect(() => {
     if (story?._id) {
       // Fetch comments
-      fetch(`/api/stories/${story._id}/comments`)
+      apiFetch(`/api/stories/${story._id}/comments`)
         .then((res) => res.json())
         .then((json) => {
           if (json.success) setCommentsList(json.data)
@@ -135,7 +140,7 @@ export const StoryDetail = () => {
 
       // Fetch user rating if authenticated
       if (isAuthenticated) {
-        fetch(`/api/stories/${story._id}/user-rating`)
+        apiFetch(`/api/stories/${story._id}/user-rating`)
           .then((res) => res.json())
           .then((json) => {
             if (json.success) setUserRating(json.userScore)
@@ -143,7 +148,7 @@ export const StoryDetail = () => {
           .catch(() => {})
 
         // Check if user bookmarks include this story
-        fetch('/api/users/me/bookmarks')
+        apiFetch('/api/users/me/bookmarks')
           .then((res) => res.json())
           .then((json) => {
             if (json.success && Array.isArray(json.data)) {
@@ -155,7 +160,7 @@ export const StoryDetail = () => {
 
       // Check author follow status
       if (story.author?._id) {
-        fetch(`/api/users/${story.author._id}/profile`)
+        apiFetch(`/api/users/${story.author._id}/profile`)
           .then((res) => res.json())
           .then((json) => {
             if (json.success && json.data) {
@@ -189,7 +194,7 @@ export const StoryDetail = () => {
     if (!story) return
 
     try {
-      const res = await fetch(`/api/stories/${story._id}/rate`, {
+      const res = await apiFetch(`/api/stories/${story._id}/rate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ score: value }),
@@ -220,7 +225,7 @@ export const StoryDetail = () => {
       const endpoint = `/api/stories/${story._id}/bookmark`
       const method = isBookmarked ? 'DELETE' : 'POST'
 
-      const res = await fetch(endpoint, { method })
+      const res = await apiFetch(endpoint, { method })
       const json = await res.json()
 
       if (res.ok && json.success) {
@@ -247,7 +252,7 @@ export const StoryDetail = () => {
       const endpoint = `/api/users/${story.author._id}/follow`
       const method = isFollowing ? 'DELETE' : 'POST'
 
-      const res = await fetch(endpoint, { method })
+      const res = await apiFetch(endpoint, { method })
       const json = await res.json()
 
       if (res.ok && json.success) {
@@ -274,7 +279,7 @@ export const StoryDetail = () => {
     if (!story || !commentText.trim()) return
 
     try {
-      const res = await fetch(`/api/stories/${story._id}/comments`, {
+      const res = await apiFetch(`/api/stories/${story._id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: commentText.trim() }),
@@ -297,7 +302,7 @@ export const StoryDetail = () => {
     if (!confirm('Are you sure you want to delete this comment?')) return
 
     try {
-      const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/comments/${commentId}`, { method: 'DELETE' })
       const json = await res.json()
       if (res.ok && json.success) {
         setCommentsList(commentsList.filter((c) => c._id !== commentId))
@@ -334,41 +339,158 @@ export const StoryDetail = () => {
   }
 
   // Tiptap JSON node structure parser and renderer
-  const renderRichText = (doc?: TiptapDoc | null) => {
-    if (!doc || !doc.content || !Array.isArray(doc.content)) {
+  const renderRichText = (doc?: TiptapDoc | Record<string, unknown> | string | null) => {
+    if (!doc) {
       return <p className="text-text-muted">No content logged for this draft.</p>
     }
 
-    return doc.content.map((node: TiptapContentNode, idx: number) => {
+    if (typeof doc === 'string') {
+      return <p className="font-sans text-sm md:text-base text-text-muted leading-relaxed mb-5">{doc}</p>
+    }
+
+    const contentArray = (doc as TiptapDoc).content
+    if (!contentArray || !Array.isArray(contentArray) || contentArray.length === 0) {
+      return <p className="text-text-muted">No content logged for this draft.</p>
+    }
+
+    const getAlignClass = (textAlign?: string) => {
+      switch (textAlign) {
+        case 'center':
+          return 'text-center'
+        case 'right':
+          return 'text-right'
+        case 'justify':
+          return 'text-justify'
+        case 'left':
+        default:
+          return 'text-left'
+      }
+    }
+
+    const renderInlineContent = (nodes?: TiptapNode[]): React.ReactNode => {
+      if (!nodes || !Array.isArray(nodes)) return null
+
+      return nodes.map((node, i) => {
+        if (node.type === 'text') {
+          let element: React.ReactNode = node.text || ''
+
+          if (node.marks && node.marks.length > 0) {
+            node.marks.forEach((mark) => {
+              switch (mark.type) {
+                case 'bold':
+                  element = <strong>{element}</strong>
+                  break
+                case 'italic':
+                  element = <em>{element}</em>
+                  break
+                case 'underline':
+                  element = <u>{element}</u>
+                  break
+                case 'strike':
+                  element = <s>{element}</s>
+                  break
+                case 'code':
+                  element = (
+                    <code className="bg-surface px-1.5 py-0.5 rounded text-accent font-mono text-xs border border-border">
+                      {element}
+                    </code>
+                  )
+                  break
+              }
+            })
+          }
+          return <React.Fragment key={i}>{element}</React.Fragment>
+        }
+
+        if (node.type === 'hardBreak') {
+          return <br key={i} />
+        }
+
+        return null
+      })
+    }
+
+    const renderNode = (node: TiptapNode, key: number | string): React.ReactNode => {
+      const alignClass = getAlignClass(node.attrs?.textAlign)
+
       switch (node.type) {
         case 'heading': {
           const level = node.attrs?.level || 1
-          const Tag = `h${level}` as keyof JSX.IntrinsicElements
-          const text = node.content?.map((t: TiptapTextNode) => t.text).join('') || ''
+          const HeadingTag = (`h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6')
+          const sizeClasses =
+            level === 1
+              ? 'text-2xl md:text-3xl font-bold mt-8 mb-4 border-b border-border/40 pb-2'
+              : level === 2
+                ? 'text-xl md:text-2xl font-bold mt-6 mb-3'
+                : 'text-lg md:text-xl font-semibold mt-4 mb-2'
+
           return (
-            <Tag
-              key={idx}
-              className="font-serif font-bold text-text mt-8 mb-4 tracking-tight text-2xl border-b border-border/30 pb-2"
+            <HeadingTag
+              key={key}
+              className={`font-serif tracking-tight text-text ${sizeClasses} ${alignClass}`}
             >
-              {text}
-            </Tag>
+              {renderInlineContent(node.content)}
+            </HeadingTag>
           )
         }
         case 'paragraph': {
-          const text = node.content?.map((t: TiptapTextNode) => t.text).join('') || ''
           return (
             <p
-              key={idx}
-              className="font-sans text-sm text-text-muted leading-relaxed mb-5 text-justify"
+              key={key}
+              className={`font-sans text-sm md:text-base text-text-muted leading-relaxed mb-5 ${alignClass}`}
             >
-              {text}
+              {renderInlineContent(node.content)}
             </p>
           )
+        }
+        case 'bulletList': {
+          return (
+            <ul key={key} className={`list-disc list-outside ml-6 my-4 space-y-1.5 text-text-muted text-sm ${alignClass}`}>
+              {node.content?.map((child, idx) => renderNode(child, idx))}
+            </ul>
+          )
+        }
+        case 'orderedList': {
+          return (
+            <ol key={key} className={`list-decimal list-outside ml-6 my-4 space-y-1.5 text-text-muted text-sm ${alignClass}`}>
+              {node.content?.map((child, idx) => renderNode(child, idx))}
+            </ol>
+          )
+        }
+        case 'listItem': {
+          return (
+            <li key={key} className="pl-1">
+              {node.content?.map((child, idx) => renderNode(child, idx))}
+            </li>
+          )
+        }
+        case 'blockquote': {
+          return (
+            <blockquote
+              key={key}
+              className={`border-l-4 border-accent pl-4 py-2 my-5 italic text-text-muted bg-surface/40 rounded-r-lg font-serif ${alignClass}`}
+            >
+              {node.content?.map((child, idx) => renderNode(child, idx))}
+            </blockquote>
+          )
+        }
+        case 'codeBlock': {
+          const codeText = node.content?.map((t) => t.text).join('') || ''
+          return (
+            <pre key={key} className="bg-surface p-4 rounded-xl font-mono text-xs border border-border my-5 overflow-x-auto text-text">
+              <code>{codeText}</code>
+            </pre>
+          )
+        }
+        case 'horizontalRule': {
+          return <hr key={key} className="my-8 border-border/60" />
         }
         default:
           return null
       }
-    })
+    }
+
+    return contentArray.map((node, idx) => renderNode(node, idx))
   }
 
   if (isLoading) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import { Search, UserPlus, Users } from 'lucide-react'
 
 interface WriterUser {
@@ -41,7 +42,7 @@ export const InviteCoAuthorModal: React.FC<InviteCoAuthorModalProps> = ({
     const timer = setTimeout(async () => {
       setSearching(true)
       try {
-        const res = await fetch(`/api/users/search?query=${encodeURIComponent(searchQuery.trim())}`)
+        const res = await apiFetch(`/api/users/search?query=${encodeURIComponent(searchQuery.trim())}`)
         const json = await res.json()
         if (res.ok && json.success) {
           setResults(json.data || [])
@@ -66,7 +67,7 @@ export const InviteCoAuthorModal: React.FC<InviteCoAuthorModalProps> = ({
   const handleSendInvite = async (targetUserId: string, targetName: string) => {
     setInvitingId(targetUserId)
     try {
-      const res = await fetch(`/api/stories/${storyId}/collab-request`, {
+      const res = await apiFetch(`/api/stories/${storyId}/collab-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetUserId }),

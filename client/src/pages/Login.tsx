@@ -7,16 +7,33 @@ import { Button } from '../components/ui/Button'
 import { toast } from '../store/useToastStore'
 import { PenTool, ArrowLeft } from 'lucide-react'
 
+interface RecentUser {
+  email: string
+  firstName: string
+  avatarUrl?: string
+}
+
 export const Login = () => {
   const navigate = useNavigate()
-  const setUser = useAuthStore((state) => state.setUser)
+  const login = useAuthStore((state) => state.login)
+  const storeLoading = useAuthStore((state) => state.loading)
   const user = useAuthStore((state) => state.user)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const isHydrated = useAuthStore((state) => state.isHydrated)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([])
+
+  // Load recent logins from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('recentLogins')
+      if (stored) {
+        setRecentUsers(JSON.parse(stored))
+      }
+    } catch {}
+  }, [])
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -25,6 +42,17 @@ export const Login = () => {
     }
   }, [isAuthenticated, isHydrated, user, navigate])
 
+  const saveRecentUser = (userData: { email: string; firstName?: string; name?: string; avatarUrl?: string }) => {
+    try {
+      const firstName = userData.firstName || (userData.name || '').split(' ')[0] || 'User'
+      const stored: RecentUser[] = JSON.parse(localStorage.getItem('recentLogins') || '[]')
+      const filtered = stored.filter((u) => u.email.toLowerCase() !== userData.email.toLowerCase())
+      const updated = [{ email: userData.email, firstName, avatarUrl: userData.avatarUrl || '' }, ...filtered].slice(0, 5)
+      localStorage.setItem('recentLogins', JSON.stringify(updated))
+      setRecentUsers(updated)
+    } catch {}
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password) {
@@ -32,27 +60,29 @@ export const Login = () => {
       return
     }
 
-    setLoading(true)
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const json = await res.json()
-      if (res.ok && json.success) {
-        setUser(json.data)
-        toast.success('Successfully logged in!')
-        navigate(json.data.role ? '/dashboard' : '/role-select')
-      } else {
-        toast.error(json.message || 'Login failed. Please verify credentials.')
-      }
-    } catch {
-      toast.error('Server error connecting to authentication service.')
-    } finally {
-      setLoading(false)
+    const res = await login(email, password)
+    if (res.success && res.data) {
+      saveRecentUser(res.data)
+      toast.success('Successfully logged in!')
+      navigate(res.data.role ? '/dashboard' : '/role-select')
+    } else {
+      toast.error(res.message || 'Login failed. Please verify credentials.')
     }
+  }
+
+  const handleSelectRecentUser = (u: RecentUser) => {
+    setEmail(u.email)
+    setPassword('')
+    setTimeout(() => {
+      const pwdInput = document.querySelector('input[type="password"]') as HTMLInputElement
+      if (pwdInput) pwdInput.focus()
+    }, 50)
+  }
+
+  const handleClearRecentUsers = () => {
+    localStorage.removeItem('recentLogins')
+    setRecentUsers([])
+    toast.info('Recent accounts cleared.')
   }
 
   const handleForgotClick = () => {
@@ -68,12 +98,12 @@ export const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-text transition-colors duration-300 flex flex-col items-center justify-center p-6 md:p-12 relative">
+    <div className="min-h-screen bg-bg text-text transition-colors duration-300 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative">
       {/* Back to Home Button */}
-      <div className="absolute top-8 left-8">
+      <div className="w-full max-w-md sm:absolute sm:top-8 sm:left-8 mb-4 sm:mb-0">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-text transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm text-text-muted hover:text-text transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Home
         </Link>
@@ -95,7 +125,56 @@ export const Login = () => {
             </div>
           </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-5 mt-6">
+          {/* Recent Logged-in Accounts Card Grid */}
+          {recentUsers.length > 0 && (
+            <div className="flex flex-col gap-3 my-5 pb-5 border-b border-border/50">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-sans font-semibold uppercase tracking-wider text-text-muted">
+                  Recent Accounts
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearRecentUsers}
+                  className="text-[10px] text-accent hover:underline cursor-pointer"
+                >
+                  Clear all
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                {recentUsers.map((u) => (
+                  <button
+                    key={u.email}
+                    type="button"
+                    onClick={() => handleSelectRecentUser(u)}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/70 bg-bg/60 hover:bg-bg hover:border-accent transition-all text-left group cursor-pointer"
+                  >
+                    {u.avatarUrl ? (
+                      <img
+                        src={u.avatarUrl}
+                        alt={u.firstName}
+                        className="w-8 h-8 rounded-full object-cover border border-border shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-accent text-white font-serif flex items-center justify-center font-bold text-xs shrink-0">
+                        {u.firstName.charAt(0)}
+                      </div>
+                    )}
+                    <div className="overflow-hidden">
+                      <span className="text-xs font-serif font-bold text-text group-hover:text-accent transition-colors block truncate">
+                        {u.firstName}
+                      </span>
+                      <span className="text-[10px] text-text-muted font-sans block truncate">
+                        {u.email}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="flex flex-col gap-5 mt-4">
             <Input
               label="Email Address"
               type="email"
@@ -125,10 +204,10 @@ export const Login = () => {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={storeLoading}
               className="w-full justify-center cursor-pointer"
             >
-              {loading ? 'Signing In...' : 'Sign In'}
+              {storeLoading ? 'Signing In...' : 'Sign In'}
             </Button>
 
             <div className="text-center text-xs text-text-muted font-sans mt-2">

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import { Flag } from 'lucide-react'
 
 interface ReportModalProps {
@@ -31,7 +32,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
     setSubmitting(true)
     try {
-      const res = await fetch('/api/reports', {
+      const res = await apiFetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

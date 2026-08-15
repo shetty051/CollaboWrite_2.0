@@ -4,6 +4,7 @@ import { Report } from '../models/reportModel'
 import { Story } from '../models/storyModel'
 import { Comment } from '../models/commentModel'
 import { User } from '../models/userModel'
+import { ContactMessage } from '../models/contactMessageModel'
 import { AuthenticatedRequest } from '../middleware/authMiddleware'
 
 // GET /api/admin/feedback (Admin only)
@@ -257,5 +258,54 @@ export const toggleUserSuspension = async (
     })
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || 'Server error updating user suspension' })
+  }
+}
+
+// GET /api/admin/contact-messages (Admin only)
+export const getContactMessages = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { status } = req.query
+    const filter: any = {}
+
+    if (status && status !== 'all') {
+      filter.status = status
+    }
+
+    const messages = await ContactMessage.find(filter).sort({ createdAt: -1 })
+
+    res.status(200).json({
+      success: true,
+      data: messages,
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Server error fetching contact messages' })
+  }
+}
+
+// PATCH /api/admin/contact-messages/:id/read (Admin only)
+export const markContactMessageRead = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const msg = await ContactMessage.findById(req.params.id)
+    if (!msg) {
+      res.status(404).json({ success: false, message: 'Contact message not found.' })
+      return
+    }
+
+    msg.status = 'read'
+    await msg.save()
+
+    res.status(200).json({
+      success: true,
+      message: 'Contact message marked as read.',
+      data: msg,
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Server error updating contact message' })
   }
 }

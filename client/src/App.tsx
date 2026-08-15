@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './api/queryClient'
 import { Header } from './components/Header'
@@ -17,7 +17,6 @@ import { UserProfile } from './pages/UserProfile'
 import { Contact } from './pages/Contact'
 import { Legal } from './pages/Legal'
 import { NotFound } from './pages/NotFound'
-import { AdminDashboard } from './pages/AdminDashboard'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminRoute } from './components/AdminRoute'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -64,7 +63,7 @@ function App() {
                 path="/admin"
                 element={
                   <AdminRoute>
-                    <AdminDashboard />
+                    <Navigate to="/dashboard" state={{ tab: 'Admin' }} replace />
                   </AdminRoute>
                 }
               />

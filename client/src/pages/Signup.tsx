@@ -9,7 +9,8 @@ import { PenTool, ArrowLeft } from 'lucide-react'
 
 export const Signup = () => {
   const navigate = useNavigate()
-  const setUser = useAuthStore((state) => state.setUser)
+  const signup = useAuthStore((state) => state.signup)
+  const storeLoading = useAuthStore((state) => state.loading)
   const user = useAuthStore((state) => state.user)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const isHydrated = useAuthStore((state) => state.isHydrated)
@@ -17,7 +18,6 @@ export const Signup = () => {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
 
   // Redirect if already authenticated and role is set
   useEffect(() => {
@@ -34,27 +34,12 @@ export const Signup = () => {
       return
     }
 
-    setLoading(true)
-    try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      })
-
-      const json = await res.json()
-      if (res.ok && json.success) {
-        // Sign-up automatically logs the user in and returns user details
-        setUser(json.data)
-        toast.success('Registration successful!')
-        navigate('/role-select')
-      } else {
-        toast.error(json.message || 'Signup failed.')
-      }
-    } catch {
-      toast.error('Server error connecting to registration system.')
-    } finally {
-      setLoading(false)
+    const res = await signup(name, email, password)
+    if (res.success && res.data) {
+      toast.success('Registration successful!')
+      navigate('/role-select')
+    } else {
+      toast.error(res.message || 'Signup failed.')
     }
   }
 
@@ -67,12 +52,12 @@ export const Signup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-text transition-colors duration-300 flex flex-col items-center justify-center p-6 md:p-12 relative">
+    <div className="min-h-screen bg-bg text-text transition-colors duration-300 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative">
       {/* Back Button */}
-      <div className="absolute top-8 left-8">
+      <div className="w-full max-w-md sm:absolute sm:top-8 sm:left-8 mb-4 sm:mb-0">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-text transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm text-text-muted hover:text-text transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Home
         </Link>
@@ -122,10 +107,10 @@ export const Signup = () => {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={storeLoading}
               className="w-full justify-center mt-2 cursor-pointer"
             >
-              {loading ? 'Creating...' : 'Register'}
+              {storeLoading ? 'Creating...' : 'Register'}
             </Button>
 
             <div className="text-center text-xs text-text-muted font-sans mt-2">

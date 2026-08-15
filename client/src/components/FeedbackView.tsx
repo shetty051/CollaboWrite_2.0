@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Card } from './ui/Card'
 import { Button } from './ui/Button'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import { MessageSquareHeart, Send, CheckCircle, Bug, Sparkles, HelpCircle } from 'lucide-react'
 
 export const FeedbackView = () => {
@@ -19,7 +20,7 @@ export const FeedbackView = () => {
 
     setSubmitting(true)
     try {
-      const res = await fetch('/api/feedback', {
+      const res = await apiFetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ category, message: message.trim() }),

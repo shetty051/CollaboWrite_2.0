@@ -3,6 +3,7 @@ import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Skeleton } from './ui/Skeleton'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import {
   Eye,
   Users,
@@ -59,7 +60,7 @@ export const WriterStats = () => {
 
   useEffect(() => {
     let isMounted = true
-    fetch('/api/users/me/stats')
+    apiFetch('/api/users/me/stats')
       .then((res) => res.json())
       .then((json) => {
         if (isMounted && json.success) {

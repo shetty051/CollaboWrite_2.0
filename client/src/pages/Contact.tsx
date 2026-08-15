@@ -6,21 +6,53 @@ import { Button } from '../components/ui/Button'
 import { toast } from '../store/useToastStore'
 import { ArrowLeft, MailOpen } from 'lucide-react'
 
+import { apiFetch } from '../api/apiClient'
+
 export const Contact = () => {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name || !email || !message) {
-      toast.error('Please fill in all fields')
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      toast.error('Please fill in all fields (name, email, message).')
       return
     }
-    toast.success('Your message has been sent successfully!')
-    setName('')
-    setEmail('')
-    setMessage('')
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      toast.error('Please enter a valid email address.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const res = await apiFetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          message: message.trim(),
+        }),
+      })
+      const json = await res.json()
+
+      if (res.ok && json.success) {
+        toast.success(json.message || 'Your message has been sent successfully!')
+        setName('')
+        setEmail('')
+        setMessage('')
+      } else {
+        toast.error(json.message || 'Failed to send message. Please try again.')
+      }
+    } catch {
+      toast.error('Error sending message. Please check your connection.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -74,8 +106,8 @@ export const Contact = () => {
             />
           </div>
 
-          <Button type="submit" variant="primary" className="w-full mt-2">
-            Send Message
+          <Button type="submit" variant="primary" disabled={submitting} className="w-full mt-2">
+            {submitting ? 'Sending...' : 'Send Message'}
           </Button>
         </form>
       </Card>

@@ -3,6 +3,7 @@ import { Story } from '../models/storyModel'
 import { User } from '../models/userModel'
 import { Rating } from '../models/ratingModel'
 import { Feedback } from '../models/feedbackModel'
+import { ContactMessage } from '../models/contactMessageModel'
 import { AuthenticatedRequest } from '../middleware/authMiddleware'
 
 // GET /api/home/spotlight (Public)
@@ -153,5 +154,32 @@ export const submitFeedback = async (
     })
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || 'Server error submitting feedback' })
+  }
+}
+
+// POST /api/contact (Public)
+export const submitContactMessage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, email, message } = req.body
+
+    if (!name || !name.trim() || !email || !email.trim() || !message || !message.trim()) {
+      res.status(400).json({ success: false, message: 'Name, email, and message are required.' })
+      return
+    }
+
+    const contactMsg = await ContactMessage.create({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      message: message.trim(),
+      status: 'unread',
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Your message has been sent successfully!',
+      data: contactMsg,
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message || 'Server error submitting contact message' })
   }
 }

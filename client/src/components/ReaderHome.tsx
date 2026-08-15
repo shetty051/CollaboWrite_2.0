@@ -4,6 +4,7 @@ import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { toast } from '../store/useToastStore'
+import { apiFetch } from '../api/apiClient'
 import { Sparkles, TrendingUp, Users, Star, Eye, BookOpen, Compass } from 'lucide-react'
 
 interface StoryItem {
@@ -44,7 +45,7 @@ export const ReaderHome = () => {
 
   useEffect(() => {
     let isMounted = true
-    Promise.all([fetch('/api/home/spotlight'), fetch('/api/home/recommendations')])
+    Promise.all([apiFetch('/api/home/spotlight'), apiFetch('/api/home/recommendations')])
       .then(async ([spotRes, recRes]) => {
         const spotJson = await spotRes.json()
         const recJson = await recRes.json()

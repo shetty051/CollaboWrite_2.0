@@ -13,7 +13,7 @@ import {
   getUserProfile,
   createReport,
 } from '../controllers/interactionController'
-import { requireAuth } from '../middleware/authMiddleware'
+import { requireAuth, optionalAuth } from '../middleware/authMiddleware'
 
 const router = Router()
 
@@ -36,7 +36,7 @@ router.delete('/stories/:id/bookmark', requireAuth, unbookmarkStory)
 router.get('/users/me/bookmarks', requireAuth, getMyBookmarks)
 
 // User Profile
-router.get('/users/:id/profile', getUserProfile)
+router.get('/users/:id/profile', optionalAuth, getUserProfile)
 
 // Reports & Flagging
 router.post('/reports', requireAuth, createReport)

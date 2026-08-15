@@ -60,6 +60,11 @@ export const Header = () => {
   // Only show nav links on landing page for unauthenticated guest sessions
   const showNavLinks = !user && location.pathname === '/'
 
+  // Hide global header on dashboard so Dashboard handles its single top bar
+  if (location.pathname === '/dashboard') {
+    return null
+  }
+
   return (
     <motion.header
       initial={{ y: -50, opacity: 0 }}
@@ -103,7 +108,7 @@ export const Header = () => {
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         {user && (
           <div className="relative">
             <button
@@ -125,7 +130,7 @@ export const Header = () => {
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 5 }}
-                  className="absolute right-0 mt-2 w-80 bg-surface border border-border rounded-2xl shadow-xl p-4 z-50 text-xs font-sans flex flex-col gap-3 max-h-96 overflow-y-auto"
+                  className="fixed sm:absolute top-14 sm:top-auto right-4 sm:right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-surface border border-border rounded-2xl shadow-xl p-4 z-50 text-xs font-sans flex flex-col gap-3 max-h-96 overflow-y-auto"
                 >
                   <div className="flex items-center justify-between border-b border-border/50 pb-2">
                     <div className="font-bold text-text flex items-center gap-1.5">
@@ -185,13 +190,13 @@ export const Header = () => {
         <ThemeToggle />
 
         {user ? (
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-text font-sans">Hi {getFirstName()}</span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="hidden sm:inline text-xs font-semibold text-text font-sans">Hi {getFirstName()}</span>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 border border-border/70 hover:border-accent hover:text-accent text-xs font-semibold uppercase tracking-wider rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 border border-border/70 hover:border-accent hover:text-accent text-[11px] sm:text-xs font-semibold uppercase tracking-wider rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
             >
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -200,7 +205,7 @@ export const Header = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 px-5 py-2 bg-accent text-white hover:bg-accent-hover text-xs font-semibold tracking-wider uppercase rounded-full shadow-sm shadow-accent/10 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-1.5 sm:py-2 bg-accent text-white hover:bg-accent-hover text-[11px] sm:text-xs font-semibold tracking-wider uppercase rounded-full shadow-sm shadow-accent/10 transition-colors cursor-pointer"
             >
               Get Started
               <ArrowRight className="w-3.5 h-3.5" />

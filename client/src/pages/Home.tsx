@@ -16,7 +16,7 @@ import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { Accordion } from '../components/ui/Accordion'
 import { Button } from '../components/ui/Button'
-import type { HealthCheckResponse } from '../types'
+import { apiFetch } from '../api/apiClient'
 
 // Visual Cover backgrounds mapped to indices
 const COVER_GRADIENTS = [
@@ -55,22 +55,11 @@ interface StoriesResponse {
 export const Home = () => {
   const navigate = useNavigate()
 
-  // Query backend status subtly
-  const { data } = useQuery<HealthCheckResponse>({
-    queryKey: ['health-check'],
-    queryFn: async () => {
-      const res = await fetch('/api/health')
-      if (!res.ok) throw new Error('API server down')
-      return res.json()
-    },
-    refetchInterval: 12000,
-  })
-
   // Query first 6 published stories for Read section
   const { data: liveStoriesData, isLoading: isStoriesLoading } = useQuery<StoriesResponse>({
     queryKey: ['live-stories-limit-6'],
     queryFn: async () => {
-      const res = await fetch('/api/stories?limit=6')
+      const res = await apiFetch('/api/stories?limit=6')
       if (!res.ok) throw new Error('Failed to load live stories')
       return res.json()
     },
@@ -124,7 +113,7 @@ export const Home = () => {
   // Animation variants
   const fadeInVariants = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
   }
 
   return (
@@ -150,12 +139,12 @@ export const Home = () => {
 
           <h1 className="text-5xl md:text-7xl font-bold font-serif tracking-tight leading-tight text-text">
             A Sanctuary for <br />
-            <span className="font-script text-6xl md:text-8xl text-accent font-normal italic block md:inline mt-2 md:mt-0 md:pl-2">
+            <span className="font-serif text-5xl md:text-7xl text-accent font-normal italic block md:inline mt-2 md:mt-0 md:pl-2">
               collaborative words
             </span>
           </h1>
 
-          <p className="text-base md:text-lg text-text-muted max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base md:text-lg font-sans text-text-muted max-w-2xl mx-auto leading-relaxed">
             Write, draft, collaborate and compile art with co-authors in a clean, quiet workspace
             inspired by high-end bookstore aesthetics.
           </p>
@@ -212,6 +201,31 @@ export const Home = () => {
                   className="w-full h-80 rounded-2xl bg-surface border border-border animate-pulse"
                 />
               ))}
+            </div>
+          ) : liveStories.length === 0 ? (
+            <div className="py-12 px-6 bg-surface/40 border border-border border-dashed rounded-3xl text-center flex flex-col items-center gap-6 max-w-2xl mx-auto w-full">
+              <div className="w-16 h-16 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">
+                <BookOpen className="w-8 h-8" />
+              </div>
+              <div className="flex flex-col gap-2 max-w-md">
+                <h3 className="text-2xl font-serif font-bold text-text">This could be your story here.</h3>
+                <p className="text-xs text-text-muted font-sans leading-relaxed">
+                  Be the first author to publish a manuscript in our community. Login to contribute to the community.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
+                <Link to="/login">
+                  <Button variant="primary" className="flex items-center gap-2 cursor-pointer">
+                    Login to Contribute
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button variant="outline" className="flex items-center gap-2 cursor-pointer">
+                    Create an Account
+                  </Button>
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -426,19 +440,6 @@ export const Home = () => {
                 An editorial workspace designed for collaborative typing, styling, and text
                 compilations. Cozy dark-mode settings and real-time socket connections.
               </p>
-
-              {/* Database Status Badge */}
-              <div className="flex items-center gap-2 mt-2 w-fit px-2.5 py-1 rounded-md bg-bg border border-border text-[10px] font-semibold text-text-muted">
-                <span className="relative flex h-2 w-2">
-                  <span
-                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${data?.database === 'Connected' ? 'bg-emerald-400' : 'bg-amber-400'}`}
-                  />
-                  <span
-                    className={`relative inline-flex rounded-full h-2 w-2 ${data?.database === 'Connected' ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                  />
-                </span>
-                MDB Atlas: {data?.database || 'Connecting...'}
-              </div>
             </div>
 
             {/* Legal Links */}

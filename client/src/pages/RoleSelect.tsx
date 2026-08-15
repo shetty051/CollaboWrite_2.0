@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
+import { apiFetch } from '../api/apiClient'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
@@ -29,7 +30,7 @@ export const RoleSelect = () => {
   const handleRoleSelection = async (selectedRole: 'reader' | 'writer') => {
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/set-role', {
+      const res = await apiFetch('/api/auth/set-role', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: selectedRole }),

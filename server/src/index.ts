@@ -49,12 +49,17 @@ app.use(
   })
 )
 
+import { uploadAvatar } from './controllers/authController'
+import { requireAuth } from './middleware/authMiddleware'
+
 // Middlewares
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
 app.use(cookieParser())
 
 // API Routes
+app.post('/api/upload-avatar', requireAuth, uploadAvatar)
+app.use('/api/auth', authRoutes)
 app.use('/api', healthRoutes)
 app.use('/api', storyRoutes)
 app.use('/api', interactionRoutes)
@@ -64,7 +69,6 @@ app.use('/api', statsRoutes)
 app.use('/api', leaderboardRoutes)
 app.use('/api', homeRoutes)
 app.use('/api', adminRoutes)
-app.use('/api/auth', authRoutes)
 
 // Socket.io Integration
 const io = new Server(server, {

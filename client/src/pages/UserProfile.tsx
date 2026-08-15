@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { toast } from '../store/useToastStore'
 import { useAuthStore } from '../store/useAuthStore'
+import { apiFetch } from '../api/apiClient'
 import { ArrowLeft, User, Heart, Check, BookOpen, Star, Eye } from 'lucide-react'
 
 interface UserProfileData {
@@ -40,28 +41,29 @@ export const UserProfile = () => {
   const currentUser = useAuthStore((state) => state.user)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
-  const [isFollowingState, setIsFollowingState] = useState<boolean | null>(null)
-  const [followerCountState, setFollowerCountState] = useState<number | null>(null)
-
   const { data, isLoading, isError, refetch } = useQuery<{
     success: boolean
     data: UserProfileData
   }>({
     queryKey: ['userProfile', userId],
     queryFn: async () => {
-      const res = await fetch(`/api/users/${userId}/profile`)
+      const res = await apiFetch(`/api/users/${userId}/profile`)
       if (!res.ok) throw new Error('User profile not found.')
       return res.json()
     },
     enabled: !!userId,
   })
 
+  const [optimisticFollowing, setOptimisticFollowing] = useState<boolean | null>(null)
+  const [optimisticCountDelta, setOptimisticCountDelta] = useState<number>(0)
+
   const profileData = data?.data
   const isOwnProfile = currentUser?._id === userId
   const isFollowing =
-    isFollowingState !== null ? isFollowingState : profileData?.isFollowing || false
-  const followerCount =
-    followerCountState !== null ? followerCountState : profileData?.user?.followerCount || 0
+    optimisticFollowing !== null ? optimisticFollowing : profileData?.isFollowing || false
+  const followerCount = (profileData?.user?.followerCount || 0) + optimisticCountDelta
+
+  const checkAuth = useAuthStore((state) => state.checkAuth)
 
   const handleFollowToggle = async () => {
     if (!isAuthenticated) {
@@ -70,27 +72,38 @@ export const UserProfile = () => {
       return
     }
 
+    const nextFollowingState = !isFollowing
+    // Optimistically update UI instantly!
+    setOptimisticFollowing(nextFollowingState)
+    setOptimisticCountDelta((prev) => (nextFollowingState ? prev + 1 : prev - 1))
+
     try {
       const endpoint = `/api/users/${userId}/follow`
       const method = isFollowing ? 'DELETE' : 'POST'
 
-      const res = await fetch(endpoint, { method })
+      const res = await apiFetch(endpoint, { method })
       const json = await res.json()
 
       if (res.ok && json.success) {
-        const nextState = !isFollowing
-        setIsFollowingState(nextState)
-        setFollowerCountState(nextState ? followerCount + 1 : Math.max(0, followerCount - 1))
         toast.success(
-          nextState
+          nextFollowingState
             ? `Following ${profileData?.user.name}!`
             : `Unfollowed ${profileData?.user.name}`,
         )
-        refetch()
+        await refetch()
+        setOptimisticFollowing(null)
+        setOptimisticCountDelta(0)
+        await checkAuth()
       } else {
+        // Rollback optimistic state on error
+        setOptimisticFollowing(!nextFollowingState)
+        setOptimisticCountDelta((prev) => (nextFollowingState ? prev - 1 : prev + 1))
         toast.error(json.message || 'Failed to update follow status.')
       }
     } catch {
+      // Rollback optimistic state on error
+      setOptimisticFollowing(!nextFollowingState)
+      setOptimisticCountDelta((prev) => (nextFollowingState ? prev - 1 : prev + 1))
       toast.error('Error updating follow status.')
     }
   }

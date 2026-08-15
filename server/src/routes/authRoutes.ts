@@ -5,6 +5,8 @@ import {
   logout,
   getMe,
   setRole,
+  uploadAvatar,
+  changePassword,
 } from '../controllers/authController'
 import { requireAuth } from '../middleware/authMiddleware'
 
@@ -17,5 +19,7 @@ router.post('/logout', logout)
 // Protected routes
 router.get('/me', requireAuth, getMe)
 router.patch('/set-role', requireAuth, setRole)
+router.post('/upload-avatar', requireAuth, uploadAvatar)
+router.patch('/change-password', requireAuth, changePassword)
 
 export default router

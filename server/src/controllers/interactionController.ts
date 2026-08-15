@@ -313,7 +313,7 @@ export const getMyBookmarks = async (req: AuthenticatedRequest, res: Response): 
   }
 }
 
-// GET /api/users/:id/profile (Public)
+// GET /api/users/:id/profile (Public/Protected optional)
 export const getUserProfile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const targetUserId = req.params.id
@@ -330,9 +330,20 @@ export const getUserProfile = async (req: AuthenticatedRequest, res: Response): 
       status: 'published',
     }).sort({ publishedAt: -1 })
 
-    const isFollowing = currentUserId
-      ? targetUser.followers.some((id) => id.toString() === currentUserId.toString())
-      : false
+    let isFollowing = false
+    if (currentUserId) {
+      const currentDoc = await User.findById(currentUserId)
+      if (currentDoc && Array.isArray(currentDoc.following)) {
+        isFollowing = currentDoc.following.some(
+          (id) => id.toString() === targetUserId.toString()
+        )
+      }
+      if (!isFollowing && Array.isArray(targetUser.followers)) {
+        isFollowing = targetUser.followers.some(
+          (id) => id.toString() === currentUserId.toString()
+        )
+      }
+    }
 
     res.status(200).json({
       success: true,

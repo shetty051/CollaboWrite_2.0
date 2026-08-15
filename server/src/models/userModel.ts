@@ -16,6 +16,8 @@ export interface IUser extends Document {
   following: Schema.Types.ObjectId[];
   bookmarks: Schema.Types.ObjectId[];
   comparePassword: (password: string) => Promise<boolean>;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const userSchema = new Schema<IUser>(

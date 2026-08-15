@@ -8,7 +8,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', children, ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', children, onAnimationStart: _onAnimationStart, ...props }, ref) => {
     const baseStyles =
       'inline-flex items-center justify-center font-sans font-medium rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all border disabled:opacity-50 disabled:pointer-events-none'
 
@@ -31,7 +31,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
-        {...props}
+        {...(props as any)}
       >
         {children}
       </motion.button>
