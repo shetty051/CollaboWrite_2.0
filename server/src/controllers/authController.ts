@@ -105,11 +105,12 @@ export const login = async (req: AuthenticatedRequest, res: Response): Promise<v
     // Generate JWT
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' })
 
-    // Set in HttpOnly Cookie
+    // Set in HttpOnly Cookie (Cross-domain Vercel <-> Render requires sameSite: 'none' & secure: true)
+    const isProd = process.env.NODE_ENV === 'production'
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     })
@@ -139,10 +140,11 @@ export const login = async (req: AuthenticatedRequest, res: Response): Promise<v
 // POST /api/auth/logout
 export const logout = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
+    const isProd = process.env.NODE_ENV === 'production'
     res.clearCookie('token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
     })
     res.status(200).json({ success: true, message: 'Logged out successfully.' })
